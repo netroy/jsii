@@ -51,39 +51,65 @@ class Object:
     __jsii_type__ = "Object"
 
 
+def _get_interfaces(obj):
+    """All JSII interface objects that this object inherits from."""
+    return list(
+        itertools.chain.from_iterable(
+            # __dict__ instead of getattr() to avoid inheritance, we're looping over mro() anyway
+            (m.__dict__.get("__jsii_ifaces__", []) for m in type(obj).mro())
+        )
+    )
+
 def _get_overides(klass: JSClass, obj: Any) -> List[Override]:
+    """Return a list of methods on 'obj' that it overrides with respect to its JSII base type."""
     overrides = []
+
+    # These are the base types we could potentially be overriding methods from
+    jsii_base_types = []
+    if getattr(klass, '__jsii_type__', None):
+        jsii_base_types.append(klass)
+    jsii_base_types.extend(_get_interfaces(obj))
+
+    print('jsii_base_types', jsii_base_types)
+
+    def find_jsii_override(name):
+        for jsii_type in jsii_base_types:
+            original = getattr(jsii_type, name, _nothing)
+            if original is not _nothing:
+                return original
+        return None
+
 
     # We need to inspect each item in the MRO, until we get to our JSClass, at that
     # point we'll bail, because those methods are not the overriden methods, but the
     # "real" methods.
-    jsii_classes = [klass] + list(
-        itertools.chain.from_iterable(
-            (getattr(m, "__jsii_ifaces__", []) for m in type(obj).mro())
-        )
-    )
+    already_searched = set([])
     for mro_klass in type(obj).mro():
-        if mro_klass is klass and getattr(mro_klass, "__jsii_type__", "Object") is not None:
-            break
-        if mro_klass is Object:
+        print(mro_klass)
+        if getattr(mro_klass, "__jsii_type__", None) is not None:
             break
 
         for name, item in mro_klass.__dict__.items():
+            # Quick skip for magic methods and methods that could never be overridden.
+            if name.startswith('_'): continue
+            if name in already_searched: continue
+            already_searched.add(name)
+
             # We're only interested in things that also exist on the JSII class or
-            # interfaces, and which are themselves, jsii members.
-            for jsii_class in jsii_classes:
-                original = getattr(jsii_class, name, _nothing)
-                if original is not _nothing:
-                    if inspect.isfunction(item) and hasattr(original, "__jsii_name__"):
-                        overrides.append(
-                            Override(method=original.__jsii_name__, cookie=name)
-                        )
-                    elif inspect.isdatadescriptor(item) and hasattr(
-                        getattr(original, "fget", None), "__jsii_name__"
-                    ):
-                        overrides.append(
-                            Override(property=original.fget.__jsii_name__, cookie=name)
-                        )
+            # interfaces, and which are themselves jsii members.
+            original = find_jsii_override(name)
+            if not original: continue
+
+            if inspect.isfunction(item) and hasattr(original, "__jsii_name__"):
+                overrides.append(
+                    Override(method=original.__jsii_name__, cookie=name)
+                )
+            elif inspect.isdatadescriptor(item) and hasattr(
+                getattr(original, "fget", None), "__jsii_name__"
+            ):
+                overrides.append(
+                    Override(property=original.fget.__jsii_name__, cookie=name)
+                )
 
     return overrides
 
@@ -133,7 +159,7 @@ def _make_reference_for_native(kernel, d):
                     }
                 }
             }
-        return d
+
     elif isinstance(d, (int, type(None), str, float, bool, datetime.datetime)):
         return d
     elif isinstance(d, (FunctionType, MethodType, BuiltinFunctionType, LambdaType)):
@@ -141,10 +167,16 @@ def _make_reference_for_native(kernel, d):
         # We won't use iscallable() since objects may implement __call__()
         # but we still want to serialize them as normal.
         raise JSIIError("Cannot pass function as argument here (did you mean to call this function?): %r" % d)
-    else:
-        kernel.create(d.__class__, d)
-        _reference_map.register_reference(d)
-        return d
+
+    # Object we've never seen before, do a remote create of it
+    maybe_create(kernel, d.__class__, d)
+    _reference_map.register_reference(d)
+    return d
+
+
+def maybe_create(kernel, klass, obj):
+    if not hasattr(obj, '__jsii_ref__'):
+        kernel.create(klass, obj)
 
 
 def _handle_callback(kernel, callback):
@@ -215,12 +247,14 @@ class Kernel(metaclass=Singleton):
         if args is None:
             args = []
 
+        print('args', args)
+
         response = self.provider.create(
             CreateRequest(
-                fqn=klass.__jsii_type__ or "Object",
+                fqn=getattr(klass, '__jsii_type__', "Object"),
                 args=_make_reference_for_native(self, args),
                 overrides=_get_overides(klass, obj),
-                interfaces=[iface.__jsii_type__ for iface in getattr(klass, "__jsii_ifaces__", [])],
+                interfaces=[iface.__jsii_interface_type__ for iface in getattr(klass, "__jsii_ifaces__", [])],
             )
         )
         if isinstance(response, Callback):

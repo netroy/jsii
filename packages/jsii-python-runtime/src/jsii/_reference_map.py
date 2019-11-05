@@ -25,7 +25,7 @@ def register_enum(enum_type: Any):
 
 
 def register_interface(iface: Any):
-    _interfaces[iface.__jsii_type__] = iface
+    _interfaces[iface.__jsii_interface_type__] = iface
 
 
 class _FakeReference:

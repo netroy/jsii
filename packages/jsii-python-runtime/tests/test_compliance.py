@@ -1001,12 +1001,10 @@ def test_consumer_calls_method_typed_as_class():
     assert ConsumerCanRingBell().when_typed_as_class(PythonConcreteBellRinger())
 
 
-@jsii.implements(IBellRinger)
-class PythonBellRinger:
+class PythonBellRinger(IBellRinger):
     def your_turn(self, bell):
         bell.ring()
 
-@jsii.implements(IConcreteBellRinger)
-class PythonConcreteBellRinger:
+class PythonConcreteBellRinger(IConcreteBellRinger):
     def your_turn(self, bell):
         bell.ring()

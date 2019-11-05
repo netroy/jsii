@@ -104,6 +104,13 @@ def member(*, jsii_name):
 
 
 def implements(*interfaces):
+    """Annotate a given class as implementing one or more JSII interfaces.
+
+    Methods on this class that correspond to methods on the declared
+    interfaces will be available to call from inside the JSII kernel.
+
+    Pass one or more JSII interface objects.
+    """
     def deco(cls):
         cls.__jsii_type__ = getattr(cls, "__jsii_type__", None)
         cls.__jsii_ifaces__ = getattr(cls, "__jsii_ifaces__", []) + list(interfaces)
@@ -113,8 +120,20 @@ def implements(*interfaces):
 
 
 def interface(*, jsii_type):
+    """Declare this class as representing a JSII interface.
+
+    The '__jsii_proxy_class__' of this method will be used to determine
+    what proxy object to instantiate if an interface-only object is
+    returned from JSII.
+
+    Using this class as a base class has the same effect as annotating
+    the subclass using @jsii.implements().
+
+    Pass the FQN of the JSII interface name.
+    """
     def deco(iface):
-        iface.__jsii_type__ = jsii_type
+        iface.__jsii_interface_type__ = jsii_type
+        iface.__jsii_ifaces__ = [iface]
         _reference_map.register_interface(iface)
         return iface
 
