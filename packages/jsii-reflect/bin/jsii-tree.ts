@@ -1,6 +1,7 @@
 import colors = require('colors/safe');
 import yargs = require('yargs');
-import { TypeSystem, TypeSystemTree } from '../lib';
+import { TypeSystem, TypeSystemTree, withColors } from '../lib';
+import { listTypeSystemElements } from '../lib/list';
 
 async function main() {
   const options = yargs
@@ -17,6 +18,7 @@ async function main() {
     .option('types', { type: 'boolean', alias: 't', desc: 'show types', default: false })
     .option('validate', { type: 'boolean', alias: 'V', desc: 'Validate that assemblies match schema while loading', default: true })
     .option('stabilities', { type: 'boolean', alias: 'S', desc: 'Show stabilities', default: false })
+    .option('list', { type: 'boolean', alias: 'l', desc: 'Print in a list instead of a tree (for greppability)', default: false })
     .argv;
 
   const typesys = new TypeSystem();
@@ -27,7 +29,7 @@ async function main() {
 
   await Promise.all((options.jsiiFile as string[] || []).map(fileOrDirectory => typesys.load(fileOrDirectory, { validate: options.validate })));
 
-  const tst = new TypeSystemTree(typesys, {
+  const displayOptions = {
     dependencies: options.dependencies || options.all,
     types: options.types || options.all || options.members || options.inheritance,
     members: options.members || options.all,
@@ -35,9 +37,16 @@ async function main() {
     signatures: options.signatures || options.all,
     stabilities: options.stabilities || options.all,
     colors: options.colors
-  });
+  };
 
-  tst.printTree();
+  if (options.list) {
+    withColors(options.colors, () => {
+      listTypeSystemElements(typesys, displayOptions);
+    });
+  } else {
+    const tst = new TypeSystemTree(typesys, displayOptions);
+    tst.printTree();
+  }
 }
 
 main().catch(e => {

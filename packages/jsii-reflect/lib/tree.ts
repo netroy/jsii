@@ -114,7 +114,7 @@ class AssemblyNode extends AsciiTree {
 class MethodNode extends AsciiTree {
   public constructor(method: Method, options: TypeSystemTreeOptions) {
     const args = method.parameters.map(p => p.name).join(',');
-    super(`${maybeStatic(method)}${method.name}(${args}) ${colors.gray('method')}${describeStability(method, options)}`);
+    super(`${maybeStatic(method)}${method.name}(${args}) ${colors.gray('method')}${renderStability(method, options)}`);
 
     if (options.signatures) {
       if (method.abstract) {
@@ -147,7 +147,7 @@ class MethodNode extends AsciiTree {
 class InitializerNode extends AsciiTree {
   public constructor(initializer: Initializer, options: TypeSystemTreeOptions) {
     const args = initializer.parameters.map(p => p.name).join(',');
-    super(`${initializer.name}(${args}) ${colors.gray('initializer')}${describeStability(initializer, options)}`);
+    super(`${initializer.name}(${args}) ${colors.gray('initializer')}${renderStability(initializer, options)}`);
 
     if (options.signatures) {
       if (initializer.protected) {
@@ -180,7 +180,7 @@ class ParameterNode extends AsciiTree {
 
 class PropertyNode extends AsciiTree {
   public constructor(property: Property, options: TypeSystemTreeOptions) {
-    super(`${maybeStatic(property)}${property.name} ${colors.gray('property')}${describeStability(property, options)}`);
+    super(`${maybeStatic(property)}${property.name} ${colors.gray('property')}${renderStability(property, options)}`);
 
     if (options.signatures) {
       if (property.abstract) {
@@ -220,7 +220,7 @@ class OptionalValueNode extends AsciiTree {
 
 class ClassNode extends AsciiTree {
   public constructor(type: ClassType, options: TypeSystemTreeOptions) {
-    super(`${colors.gray('class')} ${colors.cyan(type.name)}${describeStability(type, options)}`);
+    super(`${colors.gray('class')} ${colors.cyan(type.name)}${renderStability(type, options)}`);
 
     if (options.inheritance && type.base) {
       this.add(new KeyValueNode('base', type.base.name));
@@ -244,7 +244,7 @@ class ClassNode extends AsciiTree {
 
 class InterfaceNode extends AsciiTree {
   public constructor(type: InterfaceType, options: TypeSystemTreeOptions) {
-    super(`${colors.gray('interface')} ${colors.cyan(type.name)}${describeStability(type, options)}`);
+    super(`${colors.gray('interface')} ${colors.cyan(type.name)}${renderStability(type, options)}`);
 
     if (options.inheritance && type.interfaces.length > 0) {
       const interfaces = new TitleNode('interfaces');
@@ -263,11 +263,11 @@ class InterfaceNode extends AsciiTree {
 
 class EnumNode extends AsciiTree {
   public constructor(enumType: EnumType, options: TypeSystemTreeOptions) {
-    super(`${colors.gray('enum')} ${colors.cyan(enumType.name)}${describeStability(enumType, options)}`);
+    super(`${colors.gray('enum')} ${colors.cyan(enumType.name)}${renderStability(enumType, options)}`);
 
     if (options.members) {
       enumType.members.forEach(mem => {
-        this.add(new AsciiTree(mem.name + describeStability(mem, options)));
+        this.add(new AsciiTree(mem.name + renderStability(mem, options)));
       });
     }
   }
@@ -304,7 +304,7 @@ class FlagNode extends AsciiTree {
 /**
  * Invokes `block` with colors enabled/disabled and reverts to old value afterwards.
  */
-function withColors(enabled: boolean, block: () => void) {
+export function withColors(enabled: boolean, block: () => void) {
   const oldEnabled = colors.enabled;
   try {
     if (enabled) {
@@ -323,13 +323,19 @@ function withColors(enabled: boolean, block: () => void) {
   }
 }
 
-function describeStability(thing: Documentable, options: TypeSystemTreeOptions) {
+export function renderStability(thing: Documentable, options: { stabilities?: boolean}) {
+  if (!options.stabilities) { return ''; }
+
+  return ` (${describeStability(thing, options)})`;
+}
+
+export function describeStability(thing: Documentable, options: { stabilities?: boolean}) {
   if (!options.stabilities) { return ''; }
 
   switch (thing.docs.stability) {
-    case Stability.Stable: return ` (${colors.green('stable')})`;
-    case Stability.Experimental: return ` (${colors.yellow('experimental')})`;
-    case Stability.Deprecated: return ` (${colors.red('deprecated')})`;
+    case Stability.Stable: return `${colors.green('stable')}`;
+    case Stability.Experimental: return `${colors.yellow('experimental')}`;
+    case Stability.Deprecated: return `${colors.red('deprecated')}`;
   }
 
   return '';
