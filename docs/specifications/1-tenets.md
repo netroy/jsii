@@ -10,10 +10,11 @@ version: 1.0.0
   TypeScript cannot be expressed in some target languages).
   * When prohibiting an idiom, *jsii* strives to provide an error message that
     gives the user insight into why the pattern cannot be supported.
-* *jsii* guides (instead of forcing) library authors towards better APIs:
+* *jsii* does not force API design opinions on the developer:
   * Reserved names are limited to a minimum.
-  * Warn about patterns or names that are known to be awkward in other
-    programming languages, instead of blocking them.
+  * TypeScript API design patterns that will not transpose well in other
+    languages may cause a warning to be issued, but the developer is ultimately
+    entitled to decide whether they want to take or leave the advice.
 * *jsii* uses idiomatic tools whenever possible:
   * Generated libraries can be easily published to the "standard" package
     repository for the language.
