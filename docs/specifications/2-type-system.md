@@ -15,6 +15,12 @@ data is exchanged using **JSON**-based protocol.
 This document describes how **TypeScript** types map into the *jsii* type
 system.
 
+The API represented by the *jsii* assembly only covers declarations that are
+exported from the main file in the **TypeScript** project (as specified in the
+`package.json` file by the `types` attribute). Restrictions described in this
+document only apply to such declarations, the rest of the module can leverage
+any **TypeScript** feature.
+
 ## Basic Types
 
 ### Introduction
@@ -104,6 +110,66 @@ the *jsii* type model does not support the following **TypeScript** entities:
   yield control back to their invoker (infinite loops, `process.exit()`, ...).
 - `bigint` and `symbol` don't have equivalents in many other programming
   languages and are generally of limited value in API design.
+
+
+## Complex Types
+The goal of *jsii* is to enable cross-language re-use of class libraries.
+**TypeScript** enables representing classic object-oriented concepts such as
+*classes*, *interfaces* and such. The *jsii* type system supports some
+additional nuances on top of those, to better represent **TypeScript** and
+**JavaScript** idioms in a way that enables generating convenient APIs in other
+languages.
+
+### Classes
+Exported **TypeScript** classes are represented in the *jsii* type system, with
+the following restrictions from plain **TypeScript**:
+- Methods overloads are not supported.
+- Overridden methods or properties must retain the exact same type signature as
+  the one declared in a parent type. The **jsii** type system strictly enforces
+  the [Liskov substitution principle].
+
+[Liskov substitution principle]: https://en.wikipedia.org/wiki/Liskov_substitution_principle
+
+### Interfaces & Structs
+Exported **TypeScript** interfaces are interpreted as one of two entities in the
+*jsii* type system:
+- If the `interface` name is prefixed with an `I` (e.g: `ISomething`), it is
+  interpreted as a *behavioral interface*.
+- Otherwise (e.g: `Something`), it is interpreted as a *struct*.
+
+#### Behavioral Interfaces
+*Behavioral interfaces* are the usual object-oriented interface: they can extend
+other *behavioral interfaces*, and can be extended by *classes*. They may
+however not extend *structs*.
+
+#### Structs
+*Structs* are used to model the **JavaScript** idiom of receiving options as an
+object literal passed as the last parameter of a function. They are a formal
+description of a bag of properties, and are not meant to be implemented by other
+types. Since those types are used as inputs, they can be handled as pure-data,
+immutable objects, and the following restrictions apply:
+- A *struct* cannot declare any *method*: they must be kept behavior-free.
+- All properties declared by a *struct* must be `readonly`. The values of the
+  properties may however be mutable.
+
+*Structs* may extend one or more other *structs*, but cannot extend or be
+extended by *behavioral interfaces*, and may not be implemented by *classes*.
+
+### Type Unions
+In certain cases, several different kinds of values are acceptable for a given
+parameter or return type. **TypeScript** models those cases using *type unions*,
+which are represented as `TypeA | TypeB`. The *jsii* type model supports those,
+however most other statically typed languages do not have such a concept, making
+those parameters or return values difficult to use from those languages, as the
+value has to be declared using the most generic reference type available (for
+example, in **Java**, those are returned as `java.lang.Object`).
+
+When used as inputs (parameters, or properties of a *struct*), it may be
+possible to generate method overloads that will allow for a convenient API in
+languages that support overloards.
+
+In general however, *type unions* are discouraged and should only be used when
+there is no alternate way to model the API.
 
 
 ## References
